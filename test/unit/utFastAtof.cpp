@@ -3,8 +3,7 @@
 Open Asset Import Library (assimp)
 ---------------------------------------------------------------------------
 
-Copyright (c) 2006-2017, assimp team
-
+Copyright (c) 2006-2026, assimp team
 
 All rights reserved.
 
@@ -41,7 +40,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 #include "UnitTestPCH.h"
 
-#include <fast_atof.h>
+#include <assimp/fast_atof.h>
 
 namespace {
 
@@ -121,6 +120,7 @@ protected:
         TEST_CASE(0e-19);
         TEST_CASE(400012);
         TEST_CASE(5.9e-76);
+        TEST_CASE(7.54979e-8);
         TEST_CASE_INF(inf);
         TEST_CASE_INF(inf);
         TEST_CASE_INF(infinity);

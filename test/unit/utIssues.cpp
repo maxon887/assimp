@@ -3,8 +3,7 @@
 Open Asset Import Library (assimp)
 ---------------------------------------------------------------------------
 
-Copyright (c) 2006-2017, assimp team
-
+Copyright (c) 2006-2026, assimp team
 
 All rights reserved.
 
@@ -44,36 +43,41 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <assimp/scene.h>
 #include <assimp/Importer.hpp>
 #include <assimp/Exporter.hpp>
+#include <assimp/postprocess.h>
 
 #include "TestModelFactory.h"
 
 using namespace Assimp;
 
-class utIssues : public ::testing::Test {
-
-};
+class utIssues : public ::testing::Test {};
 
 #ifndef ASSIMP_BUILD_NO_EXPORT
 
 TEST_F( utIssues, OpacityBugWhenExporting_727 ) {
     float opacity;
-    aiScene *scene( TestModelFacttory::createDefaultTestModel( opacity ) );
+    aiScene *scene = TestModelFactory::createDefaultTestModel(opacity);
     Assimp::Importer importer;
     Assimp::Exporter exporter;
-                
+
+    const aiExportFormatDesc *desc = exporter.GetExportFormatDescription( 0 );
+    ASSERT_NE( desc, nullptr );
+
     std::string path = "dae";
-    const aiExportFormatDesc *desc( exporter.GetExportFormatDescription( 0 ) );
-    EXPECT_NE( desc, nullptr );
+    path.append(".");
     path.append( desc->fileExtension );
     EXPECT_EQ( AI_SUCCESS, exporter.Export( scene, desc->id, path ) );
-    const aiScene *newScene( importer.ReadFile( path, 0 ) );
-    EXPECT_TRUE( NULL != newScene );
+    const aiScene *newScene( importer.ReadFile( path, aiProcess_ValidateDataStructure ) );
+    ASSERT_NE( nullptr, newScene );
     float newOpacity;
-    if ( newScene->mNumMaterials > 0 ) {
-        std::cout << "Desc = " << desc->description << "\n";
+    if (newScene->mNumMaterials > 0 ) {
         EXPECT_EQ( AI_SUCCESS, newScene->mMaterials[ 0 ]->Get( AI_MATKEY_OPACITY, newOpacity ) );
-        EXPECT_EQ( opacity, newOpacity );
+        EXPECT_FLOAT_EQ( opacity, newOpacity );
     }
+    
+    TestModelFactory::releaseDefaultTestModel(&scene);
+
+    // Cleanup. Delete exported dae.dae file
+    EXPECT_EQ(0, std::remove(path.c_str()));
 }
 
 #endif // ASSIMP_BUILD_NO_EXPORT

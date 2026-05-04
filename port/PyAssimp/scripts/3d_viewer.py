@@ -466,8 +466,8 @@ class PyAssimp3DViewer:
         try:
             self.set_shaders_v130()
             self.prepare_shaders()
-        except RuntimeError, message:
-            sys.stderr.write("%s\n" % message)
+        except RuntimeError as e:
+            sys.stderr.write("%s\n" % e.message)
             sys.stdout.write("Could not compile shaders in version 1.30, trying version 1.20\n")
 
         if not shader_compilation_succeeded:
@@ -895,7 +895,7 @@ class PyAssimp3DViewer:
         aspect = camera.aspect
 
         u = 0.1  # unit size (in m)
-        l = 3 * u  # lenght of the camera cone
+        l = 3 * u  # length of the camera cone
         f = 3 * u  # aperture of the camera cone
 
         glPushMatrix()

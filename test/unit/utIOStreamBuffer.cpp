@@ -3,8 +3,7 @@
 Open Asset Import Library (assimp)
 ---------------------------------------------------------------------------
 
-Copyright (c) 2006-2017, assimp team
-
+Copyright (c) 2006-2026, assimp team
 
 All rights reserved.
 
@@ -41,8 +40,10 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #include "UnitTestPCH.h"
-#include "IOStreamBuffer.h"
+#include <assimp/IOStreamBuffer.h>
 #include "TestIOStream.h"
+#include "Tools/TestTools.h"
+#include "UnitTestFileGenerator.h"
 
 class IOStreamBufferTest : public ::testing::Test {
     // empty
@@ -68,46 +69,80 @@ TEST_F( IOStreamBufferTest, accessCacheSizeTest ) {
     EXPECT_EQ( 100U, myBuffer2.cacheSize() );
 }
 
+const char data[]{"Lorem ipsum dolor sit amet, consectetur adipiscing elit. Qui\
+sque luctus sem diam, ut eleifend arcu auctor eu. Vestibulum id est vel nulla l\
+obortis malesuada ut sed turpis. Nulla a volutpat tortor. Nunc vestibulum portt\
+itor sapien ornare sagittis volutpat."};
+
+
 TEST_F( IOStreamBufferTest, open_close_Test ) {
     IOStreamBuffer<char> myBuffer;
 
     EXPECT_FALSE( myBuffer.open( nullptr ) );
     EXPECT_FALSE( myBuffer.close() );
 
-    char buffer[ L_tmpnam ];
-    tmpnam( buffer );
-    std::FILE *fs( std::fopen( buffer, "w+" ) );
-    size_t written( std::fwrite( buffer, 1, sizeof( char ) * L_tmpnam, fs ) );
+    const auto dataSize = sizeof(data);
+    const auto dataCount = dataSize / sizeof(*data);
+
+    char fname[]={ "octest.XXXXXX" };
+    std::string tmpName;
+    auto* fs = MakeTmpFile(fname, std::strlen(fname), tmpName);
+    ASSERT_NE(nullptr, fs);
+
+    auto written = std::fwrite(data, sizeof(*data), dataCount, fs);
     EXPECT_NE( 0U, written );
-    std::fflush( fs );
+    auto flushResult = std::fflush( fs );
+	ASSERT_EQ(0, flushResult);
+	fclose(fs);
 
-    TestDefaultIOStream myStream( fs, buffer );
+    FILE *new_fs{ nullptr };
+    EXPECT_TRUE(Unittest::TestTools::openFilestream(&new_fs, tmpName.c_str(), "r"));
+    ASSERT_NE(nullptr, new_fs);
+    {
+        TestDefaultIOStream myStream(new_fs, fname);
 
-    EXPECT_TRUE( myBuffer.open( &myStream ) );
-    EXPECT_FALSE( myBuffer.open( &myStream ) );
-    EXPECT_TRUE( myBuffer.close() );
+        EXPECT_TRUE( myBuffer.open( &myStream ) );
+        EXPECT_FALSE( myBuffer.open( &myStream ) );
+        EXPECT_TRUE( myBuffer.close() );
+    }
+    remove(fname);
 }
 
 TEST_F( IOStreamBufferTest, readlineTest ) {
-    char buffer[ L_tmpnam ];
-    tmpnam( buffer );
-    std::FILE *fs( std::fopen( buffer, "w+" ) );
-    size_t written( std::fwrite( buffer, 1, sizeof( char ) * L_tmpnam, fs ) );
+
+    const auto dataSize = sizeof(data);
+    const auto dataCount = dataSize / sizeof(*data);
+
+    char fname[]={ "readlinetest.XXXXXX\0" };
+    std::string tmpName;
+    auto* fs = MakeTmpFile(fname, std::strlen(fname), tmpName);
+    ASSERT_NE(nullptr, fs);
+
+    auto written = std::fwrite( data, sizeof(*data), dataCount, fs );
     EXPECT_NE( 0U, written );
-    std::fflush( fs );
 
-    IOStreamBuffer<char> myBuffer( 26 );
-    EXPECT_EQ( 26U, myBuffer.cacheSize() );
+	auto flushResult = std::fflush(fs);
+	ASSERT_EQ(0, flushResult);
+	std::fclose(fs);
 
-    TestDefaultIOStream myStream( fs, buffer );
-    size_t size( myStream.FileSize() );
-    size_t numBlocks( size / myBuffer.cacheSize() );
+    FILE *new_fs{ nullptr };
+    EXPECT_TRUE(Unittest::TestTools::openFilestream(&new_fs, tmpName.c_str(), "r"));
+    ASSERT_NE(nullptr, new_fs);
+
+    const auto tCacheSize = 26u;
+
+    IOStreamBuffer<char> myBuffer(tCacheSize);
+    EXPECT_EQ(tCacheSize, myBuffer.cacheSize());
+
+    TestDefaultIOStream myStream(new_fs, fname);
+    auto size = myStream.FileSize();
+    auto numBlocks = size / myBuffer.cacheSize();
     if ( size % myBuffer.cacheSize() > 0 ) {
         numBlocks++;
     }
-    EXPECT_TRUE( myBuffer.open( &myStream ) );
-    EXPECT_EQ( numBlocks, myBuffer.getNumBlocks() );
-    EXPECT_TRUE( myBuffer.close() );
+    EXPECT_TRUE(myBuffer.open(&myStream));
+    EXPECT_EQ(numBlocks, myBuffer.getNumBlocks() );
+    EXPECT_TRUE(myBuffer.close() );
 }
 
 TEST_F( IOStreamBufferTest, accessBlockIndexTest ) {
